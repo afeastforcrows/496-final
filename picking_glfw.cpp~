@@ -429,6 +429,7 @@ public:
 
 		float angle = dot(endVec, startVec);
 		Vec3 axis = cross(startVec, endVec);
+		fprintf(stderr, "axis %f, %f, %f \n", axis[0], axis[1], axis[2]);
 
 		angle*=2.0f;
 
