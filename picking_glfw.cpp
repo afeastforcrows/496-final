@@ -261,6 +261,16 @@ public:
     ******/
   }
 
+	void cull(){
+		Vec3 gaze = centerPosition - eyePosition;
+		Vec3 objVec;
+		for(int x = 1; x<4; x++){
+			objVec = Vec3(myGraph.myObjs[x].FL->center[0], myGraph.myObjs[x].FL->center[1], myGraph.myObjs[x].FL->center[2])-eyePosition;
+			float angle = dot(gaze, objVec);
+			printf("Angle %i. %f \n", x, angle);
+		}
+	}
+
   bool render( ){
     Vec4 light0_position(0.0, 5.0, 10.0, 1.0);
     Vec4 light1_position(0,5,-10,1);
@@ -352,17 +362,12 @@ public:
     glVertex3f(-12.0f, 12.0f, -12.0f);
     glEnd();
 
-	glBegin(GL_QUADS);
-	/* Front sky */
-	//glNormal3f( -1.0f,  0.0f,   1.0f);
-	glVertex3f(centerPosition[0] + 0.2f, centerPosition[1] + 0.2f, centerPosition[2] + 3.3f);
-	//glNormal3f( -1.0f, -1.0f,   1.0f);
-	glVertex3f(centerPosition[0] + 0.2f, centerPosition[1] - 0.2f, centerPosition[2] + 3.4f);
-	//glNormal3f(  1.0f, -1.0f,   1.0f);
-	glVertex3f(centerPosition[0] - 0.2f, centerPosition[1] + 0.2f, centerPosition[2] + 3.5f);
-	//glNormal3f(  1.0f,  0.0f,   1.0f);
-	glVertex3f(centerPosition[0] - 0.2f, centerPosition[1] - 0.2f, centerPosition[2] + 3.6f);
-	glEnd();
+	glBegin(GL_LINES);
+	//glColor3fv( 1.0f, 1.0f, 1.0f, 0.0f );
+	//glVertex3f(eyePosition[0], eyePosition[1], eyePosition[2]);
+	glVertex3f(5,4,2);
+	glVertex3f(-5,-4,-2);
+	glEnd(); 
 
 	
 
@@ -375,10 +380,7 @@ public:
 		//fprintf(stderr, "Right %f, %f, %f \n", eyePosition[0], eyePosition[1], eyePosition[2]);
 	}
 	if(isKeyPressed('C')){
-		centerPosition[0]+=0.07071/2;
-		centerPosition[2]+=0.07071/2;
-		float dist = sqrt( (eyePosition[0]-centerPosition[0])*(eyePosition[0]-centerPosition[0]) + (eyePosition[2]-centerPosition[2])*(eyePosition[2]-centerPosition[2]));
-		fprintf(stderr, "Dist: %f\n", dist);
+		cull();
 	}
 
     if(isKeyPressed('Q')){
