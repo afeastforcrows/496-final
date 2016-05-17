@@ -22,7 +22,7 @@ class SceneGraph{
 
 	void init();
 
-	void drawBoundingSphere(Vec3 center, float s);
+	void drawBoundingSphere(Vec3 center);
 
 	void updatePly();
 

@@ -47,7 +47,7 @@ void BBox::update(Vec3 c, float w){
 
 void BBox::drawBB(){//Vec3 center, float width){
 
-	//gluSphere(quadObj, radius, 8, 8);
+	gluSphere(quadObj, radius, 8, 8);
 
 	vertices[0] = Vec4(	-0.5,	-0.5,	-0.5,	1.0);
 	vertices[1] = Vec4(	0.5,	-0.5,	-0.5,	1.0);

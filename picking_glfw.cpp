@@ -43,17 +43,16 @@ void msglVersion(void){
 }
 
 void drawSphere(float radius, int slices, int stacks){
-  GLUquadricObj *quadObj;
-  quadObj = gluNewQuadric();
-  assert(quadObj);
-  /*
-  gluQuadricDrawStyle(quadObj, GLU_FILL);
-  gluQuadricNormals(quadObj, GLU_SMOOTH);
-  */
-  gluQuadricDrawStyle(quadObj, GLU_LINE);
-  gluQuadricNormals(quadObj, GLU_SMOOTH);
-
-  gluSphere(quadObj, radius, slices, stacks);
+	GLUquadricObj *quadObj;
+	quadObj = gluNewQuadric();
+	assert(quadObj);
+	/*
+	gluQuadricDrawStyle(quadObj, GLU_FILL);
+	gluQuadricNormals(quadObj, GLU_SMOOTH);
+	*/
+	gluQuadricDrawStyle(quadObj, GLU_LINE);
+	gluQuadricNormals(quadObj, GLU_SMOOTH);
+	gluSphere(quadObj, radius, slices, stacks);
 }
 
 class CameraControlApp : public GLFWApp{
@@ -173,93 +172,192 @@ public:
     return true;
   }
   
-  void pick(int x, int y){
-    float center[3];
-    for(int i = 0; i < 3; i++){
-      center[i] = bunnyModel->center[i];
-    }
-    Point3 cc(center);
-    BoundingSphere boundingSphere(cc, bunnyModel->radius);
-    GLViewPort vp;
+  bool pick(int x, int y, FaceList *fl){
+		bool result = false;
+    		float center[3];
+		for(int i = 0; i < 3; i++){
+			center[i] = fl->center[i];
+		}
+		Point3 cc(center);
+		BoundingSphere boundingSphere(cc, fl->radius);
+		GLViewPort vp;
+		    /*******
+		     * With the double unproject technique
+		     */
+		    // origin at the lower left corner; flip the y
+		int flipped_y = vp.height( ) - y - 1;
+		    
+		Vec3 nearWinCoord(x, flipped_y, 0);
+		Vec3 farWinCoord(x, flipped_y, 1);
+		Vec3 nearObjCoord, farObjCoord;
+		/*int viewport[4];
+		glGetIntegerv( GL_VIEWPORT, viewport ); 
+		double mv[16], proj[16];
+		for(int i = 0; i < 4; i++){
+		      for(int j = 0; j < 4; j++){
+			mv[(i*4)+j] = modelViewMatrix(i, j);
+			proj[(i*4)+j] = projectionMatrix(i, j);
+		      }
+		    }
+		    double a, b, c, d, e, f;*/
+		    //_msUnProject(x, y, 0.0, mv, proj, viewport, &a, &b, &c);
+		if(!unproject(nearWinCoord, projectionMatrix, modelViewMatrix, vp, nearObjCoord)){
+			std::cerr << "Something is wrong, the omega of the unprojected winCoord is zero." << std::endl;
+			assert(false);
+		}
+		    //_msUnProject(x, y, 1.0, mv, proj, viewport, &d, &e, &f);
+		    if(!unproject(farWinCoord, projectionMatrix, modelViewMatrix, vp, farObjCoord)){
+		      std::cerr << "Something is wrong, the omega of the unprojected winCoord is zero." << std::endl;
+		      assert(false);
+		    }
+		    /*std::cerr << nearWinCoord << " " << nearObjCoord << " " << a << " " << b << " " << c << std::endl;
+		    std::cerr << farWinCoord << " " << farObjCoord << " " << d << " " << e << " " << f << std::endl;*/
+		    Vec3 direction1 = farObjCoord - nearObjCoord;
+		    Point3 rayOrigin1(eyePosition);
+		    Ray r1(rayOrigin1, direction1);
+		    if( boundingSphere.intersectWith(r1) ){
+		      //std::cerr << "Intersection" << std::endl;
+			result = true;
+		    }else{
+		      //std::cerr << "No intersection" << std::endl;
+		    }
+		    /*
+		     * End double unproject technique
+		     ******/
+		    
+		    /******
+		     * Ray in eye coordinates
+		     */
+		    int window_y = (vp.height( ) - y) - vp.height( )/2;
+		    double norm_y = double(window_y)/double(vp.height( )/2);
+		    int window_x = x - vp.width( )/2;
+		    double norm_x = double(window_x)/double(vp.width( )/2);
+		    double near_height = atan(degreesToRadians(25.0));
+		    float _y = near_height * norm_y;
+		    float _x = near_height * vp.aspect( ) * norm_x;
+		    
+		    Mat4 modelViewInverse = modelViewMatrix.inverse( );
+		    Vec4 ray_origin(0.f, 0.f, 0.f, 1.f);
+		    // near distance (3rd param) is from the perspective call,
+		    // it should really come from a camera object.
+		    Vec4 ray_direction(_x, _y, -1.f, 0.f);
+		    ray_origin = modelViewInverse * ray_origin;
+		    ray_direction = modelViewInverse * ray_direction;
+		    
+		    //std::cerr << ray_origin << std::endl;
+		    //std::cerr << ray_direction << std::endl;
+		    Point3 rayOrigin2 = Point3(ray_origin);
+		    Vec3 direction2 = ray_direction.xyz( );
+		    Ray r2(rayOrigin2, direction2);
+		    //std::cerr << r2 << std::endl;
+		    if( boundingSphere.intersectWith(r2) ){
+		      //std::cerr << "Intersection again" << std::endl;
+		    }else{
+		      //std::cerr << "No intersection again" << std::endl;
+		    }
+		    
+		   /*
+		    * End ray in eye coordinates
+		    ******/
+		return result;
+	}
 
-    /*******
-     * With the double unproject technique
-     */
-    // origin at the lower left corner; flip the y
-    int flipped_y = vp.height( ) - y - 1;
+	void cullIt(int x, int y){
+
+		float center[3];
+		for(int i = 0; i < 3; i++){
+			center[i] = bunnyModel->center[i];
+		}
+		Point3 cc(center);
+		BoundingSphere boundingSphere(cc, bunnyModel->radius);
+		GLViewPort vp;
+
+		/*******
+		 * With the double unproject technique
+		*/
+		// origin at the lower left corner; flip the y
+		int flipped_y = vp.height( ) - y - 1;
     
-    Vec3 nearWinCoord(x, flipped_y, 0);
-    Vec3 farWinCoord(x, flipped_y, 1);
-    Vec3 nearObjCoord, farObjCoord;
-    /*int viewport[4];
-    glGetIntegerv( GL_VIEWPORT, viewport ); 
-    double mv[16], proj[16];
-    for(int i = 0; i < 4; i++){
-      for(int j = 0; j < 4; j++){
-        mv[(i*4)+j] = modelViewMatrix(i, j);
-        proj[(i*4)+j] = projectionMatrix(i, j);
-      }
-    }
-    double a, b, c, d, e, f;*/
-    //_msUnProject(x, y, 0.0, mv, proj, viewport, &a, &b, &c);
-    if(!unproject(nearWinCoord, projectionMatrix, modelViewMatrix, vp, nearObjCoord)){
-      std::cerr << "Something is wrong, the omega of the unprojected winCoord is zero." << std::endl;
-      assert(false);
-    }
-    //_msUnProject(x, y, 1.0, mv, proj, viewport, &d, &e, &f);
-    if(!unproject(farWinCoord, projectionMatrix, modelViewMatrix, vp, farObjCoord)){
-      std::cerr << "Something is wrong, the omega of the unprojected winCoord is zero." << std::endl;
-      assert(false);
-    }
-    /*std::cerr << nearWinCoord << " " << nearObjCoord << " " << a << " " << b << " " << c << std::endl;
-    std::cerr << farWinCoord << " " << farObjCoord << " " << d << " " << e << " " << f << std::endl;*/
-    Vec3 direction1 = farObjCoord - nearObjCoord;
-    Point3 rayOrigin1(eyePosition);
-    Ray r1(rayOrigin1, direction1);
-    if( boundingSphere.intersectWith(r1) ){
-      std::cerr << "Intersection" << std::endl;
-    }else{
-      std::cerr << "No intersection" << std::endl;
-    }
-    /*
-     * End double unproject technique
-     ******/
+		Vec3 nearWinCoord(x, flipped_y, 0);
+		Vec3 farWinCoord(x, flipped_y, 1);
+		Vec3 nearObjCoord, farObjCoord;
+
+		Vec3 objCenter = Vec3(myGraph.myObjs[3].FL->center[0], myGraph.myObjs[3].FL->center[1], myGraph.myObjs[3].FL->center[2]);
+		unproject(nearWinCoord, projectionMatrix, modelViewMatrix, vp, objCenter);
+
+		//_msUnProject(x, y, 0.0, mv, proj, viewport, &a, &b, &c);
+		if(!unproject(nearWinCoord, projectionMatrix, modelViewMatrix, vp, nearObjCoord)){
+			std::cerr << "Something is wrong, the omega of the unprojected winCoord is zero." << std::endl;
+			assert(false);
+		}
+		//_msUnProject(x, y, 1.0, mv, proj, viewport, &d, &e, &f);
+		if(!unproject(farWinCoord, projectionMatrix, modelViewMatrix, vp, farObjCoord)){
+			std::cerr << "Something is wrong, the omega of the unprojected winCoord is zero." << std::endl;
+			assert(false);
+		}
+		/*std::cerr << nearWinCoord << " " << nearObjCoord << " " << a << " " << b << " " << c << std::endl;
+		std::cerr << farWinCoord << " " << farObjCoord << " " << d << " " << e << " " << f << std::endl;*/
+		Vec3 direction1 = farObjCoord - nearObjCoord;
+		Point3 rayOrigin1(eyePosition);
+		Ray r1(rayOrigin1, direction1);
+		if( boundingSphere.intersectWith(r1) ){
+			std::cerr << "Intersection" << std::endl;
+		}else{
+			std::cerr << "No intersection" << std::endl;
+		}
+
+		Vec3 objVec = objCenter - nearObjCoord;
+		unproject(nearWinCoord, projectionMatrix, modelViewMatrix, vp, objVec);
+		Ray r4(rayOrigin1, objVec);
+		//Vec3 myRay = Vec3(r4[0], r4[1], r4[2]);
+		Vec3 myRay = r4.direction();
+		
+		Vec3 gaze = Vec3(centerPosition-eyePosition);
+		unproject(nearWinCoord, projectionMatrix, modelViewMatrix, vp, gaze);
+
+		float angle = dot(myRay, gaze); 
+		printf("Angle 1 %f \n", angle);
+		//printf("Angle 2 %f, %f, %f \n", objCenter[0], objCenter[1], objCenter[2]);
+
+		/*
+		 * End double unproject technique
+		******/
     
-    /******
-     * Ray in eye coordinates
-     */
-    int window_y = (vp.height( ) - y) - vp.height( )/2;
-    double norm_y = double(window_y)/double(vp.height( )/2);
-    int window_x = x - vp.width( )/2;
-    double norm_x = double(window_x)/double(vp.width( )/2);
-    double near_height = atan(degreesToRadians(25.0));
-    float _y = near_height * norm_y;
-    float _x = near_height * vp.aspect( ) * norm_x;
+		/******
+		 * Ray in eye coordinates
+		*/
+		int window_y = (vp.height( ) - y) - vp.height( )/2;
+		double norm_y = double(window_y)/double(vp.height( )/2);
+		int window_x = x - vp.width( )/2;
+		double norm_x = double(window_x)/double(vp.width( )/2);
+		double near_height = atan(degreesToRadians(25.0));
+		float _y = near_height * norm_y;
+		float _x = near_height * vp.aspect( ) * norm_x;
     
-    Mat4 modelViewInverse = modelViewMatrix.inverse( );
-    Vec4 ray_origin(0.f, 0.f, 0.f, 1.f);
-    // near distance (3rd param) is from the perspective call,
-    // it should really come from a camera object.
-    Vec4 ray_direction(_x, _y, -1.f, 0.f);
-    ray_origin = modelViewInverse * ray_origin;
-    ray_direction = modelViewInverse * ray_direction;
+		Mat4 modelViewInverse = modelViewMatrix.inverse( );
+		Vec4 ray_origin(0.f, 0.f, 0.f, 1.f);
+		// near distance (3rd param) is from the perspective call,
+		// it should really come from a camera object.
+		Vec4 ray_direction(_x, _y, -1.f, 0.f);
+		ray_origin = modelViewInverse * ray_origin;
+		ray_direction = modelViewInverse * ray_direction;
     
-    //std::cerr << ray_origin << std::endl;
-    //std::cerr << ray_direction << std::endl;
-    Point3 rayOrigin2 = Point3(ray_origin);
-    Vec3 direction2 = ray_direction.xyz( );
-    Ray r2(rayOrigin2, direction2);
-    //std::cerr << r2 << std::endl;
-    if( boundingSphere.intersectWith(r2) ){
-      std::cerr << "Intersection again" << std::endl;
-    }else{
-      std::cerr << "No intersection again" << std::endl;
-    }
+		//std::cerr << ray_origin << std::endl;
+		//std::cerr << ray_direction << std::endl;
+		Point3 rayOrigin2 = Point3(ray_origin);
+		Vec3 direction2 = ray_direction.xyz( );
+		Ray r2(rayOrigin2, direction2);
+		//std::cerr << r2 << std::endl;
+		if( boundingSphere.intersectWith(r2) ){
+			std::cerr << "Intersection again" << std::endl;
+		}else{
+			std::cerr << "No intersection again" << std::endl;
+		}
     
-   /*
-    * End ray in eye coordinates
-    ******/
-  }
+		/*
+		 * End ray in eye coordinates
+		******/
+}
 
 	void cull(){
 		Vec3 gaze = centerPosition - eyePosition;
@@ -362,25 +460,59 @@ public:
     glVertex3f(-12.0f, 12.0f, -12.0f);
     glEnd();
 
+
+//////////////////////////////////////////////////////////////////////
+//	Draw frustum lines
+/////////////////////////////////////////////////////////////////
+
+	Vec3 gazeVec = (Vec3(centerPosition-eyePosition));
+	Vec3 rightVec = normalize(cross(Vec3(gazeVec[0], gazeVec[1], gazeVec[2]), upVector));
+	glLineWidth(2.0f);
 	glBegin(GL_LINES);
 	//glColor3fv( 1.0f, 1.0f, 1.0f, 0.0f );
 	//glVertex3f(eyePosition[0], eyePosition[1], eyePosition[2]);
-	glVertex3f(5,4,2);
-	glVertex3f(-5,-4,-2);
+
+	Mat4 modelViewInverse = modelViewMatrix.inverse( );
+
+	Vec4 topLeft = Vec4(gazeVec[0]-rightVec[0]+upVector[0], gazeVec[1]-rightVec[1]+upVector[1], gazeVec[2]-rightVec[2]+upVector[2], 0.0f);
+	topLeft = modelViewInverse * topLeft;
+
+	Vec4 bottomRight = Vec4(gazeVec[0]+rightVec[0]-upVector[0], gazeVec[1]+rightVec[1]-upVector[1], gazeVec[2]+rightVec[2]-upVector[2], 0.0f);
+	bottomRight = projectionMatrix * bottomRight;
+	bottomRight = bottomRight /2.0f;
+
+	//glVertex3f(gazeVec[0]+(rightVec[1]+upVector[1])*2.0f, gazeVec[1]+(rightVec[1]+upVector[1])*2.0f, gazeVec[2]);//+rightVec[2]+upVector[2]);
+	//glVertex3f(gazeVec[0]-rightVec[0]+upVector[0], gazeVec[1]-rightVec[1]+upVector[1], gazeVec[2]-rightVec[2]+upVector[2]);
+	//glVertex3f(gazeVec[0]-rightVec[0]-upVector[0], gazeVec[1]-rightVec[1]-upVector[1], gazeVec[2]-rightVec[2]-upVector[2]);
+	//glVertex3f(gazeVec[0]+rightVec[0]-upVector[0], gazeVec[1]+rightVec[1]-upVector[1], gazeVec[2]+rightVec[2]-upVector[2]);
+	glVertex3f(topLeft[0], topLeft[1], topLeft[2]);
+	glVertex3f(bottomRight[0], bottomRight[1], bottomRight[2]);
+	//glVertex3f(-5,-4,-2);
 	glEnd(); 
 
 	
-
-    //bunnyModel->draw( );
-    drawSphere(bunnyModel->radius, 32, 32);
+	glLineWidth(1.0f);
     
+	//Show bounding sphere
+	if(myGraph.showBB>=0 && myGraph.boolBB == true){
+		myGraph.drawBoundingSphere(Vec3(myGraph.myObjs[myGraph.showBB].FL->center[0],
+						myGraph.myObjs[myGraph.showBB].FL->center[1],
+						myGraph.myObjs[myGraph.showBB].FL->center[2]),
+						myGraph.myObjs[myGraph.showBB].FL->radius);
+	}
+
+	if(isKeyPressed('A')){
+		myGraph.myObjs[1].FL->translate(0.1,0,0);
+	}
+
 	if(isKeyPressed('B')){
 		fprintf(stderr, "Center %f, %f, %f \n", centerPosition[0], centerPosition[1], centerPosition[2]);
 		fprintf(stderr, "eye %f, %f, %f \n", eyePosition[0], eyePosition[1], eyePosition[2]);
 		//fprintf(stderr, "Right %f, %f, %f \n", eyePosition[0], eyePosition[1], eyePosition[2]);
 	}
 	if(isKeyPressed('C')){
-		cull();
+		cullIt(250,250);		
+		//cull();
 	}
 
     if(isKeyPressed('Q')){
@@ -411,12 +543,21 @@ public:
 	eyePosition-=upVector/5.0f;
 	centerPosition-=(upVector/5.0f);
     }
-    if(mouseButtonFlags( ) == GLFWApp::MOUSE_BUTTON_LEFT){
-      //printf("mouse left button\n");
-      Vec2 mousePosition = mouseCurrentPosition( );
-      //std::cout << "Mouse position: " << mousePosition << std::endl;
-      pick(mousePosition[0], mousePosition[1]);
-    }
+	if(mouseButtonFlags( ) == GLFWApp::MOUSE_BUTTON_LEFT){
+		//printf("mouse left button\n");
+		Vec2 mousePosition = mouseCurrentPosition( );
+		//std::cout << "Mouse position: " << mousePosition << std::endl;
+		for(int x=1; x<numObj; x++){
+			if(pick(mousePosition[0], mousePosition[1], myGraph.myObjs[x].FL)){
+				printf("Intersect with %s!\n", myGraph.myObjs[x].name.c_str());
+				myGraph.showBB = x;
+				break;
+			}
+			else{
+				myGraph.showBB = -1;
+			}
+		}
+	}
 	if (isKeyPressed(GLFW_KEY_LEFT_SHIFT) && mouseButtonFlags( ) == GLFWApp::MOUSE_BUTTON_LEFT){
 		
 	}
@@ -431,26 +572,29 @@ public:
 
 		float angle = dot(endVec, startVec);
 		Vec3 axis = cross(startVec, endVec);
+		//axis[2] = 0;
 
 		angle*=2.0f;
 
 		float delta = sin(angle / 2);
 		float gamma = cos(angle / 2);
-		Mat4 Q_bar = { gamma	,  delta * axis[2], -delta * axis[1], delta * axis[0]
-				,-delta * axis[2],  gamma         ,  delta * axis[0], delta * axis[1]
-				, delta * axis[1], -delta * axis[0],  gamma         , delta * axis[2]
-				,-delta * axis[0], -delta * axis[1], -delta * axis[2], gamma         };
-		Mat4 Q = { gamma        ,delta * axis[2], -delta * axis[1], -delta * axis[0]
-				,-delta * axis[2],  gamma         ,  delta * axis[0], -delta * axis[1]
-				, delta * axis[1], -delta * axis[0],  gamma         , -delta * axis[2]
-				, delta * axis[0],  delta * axis[1],  delta * axis[2],  gamma         };
+		Mat4 Q_bar = { 	gamma,			delta * axis[2],	-delta * axis[1],	delta * axis[0]
+				,-delta * axis[2],	gamma,			delta * axis[0],	delta * axis[1]
+				, delta * axis[1],	-delta * axis[0],	gamma,			delta * axis[2]
+				,-delta * axis[0],	-delta * axis[1],	-delta * axis[2],	gamma};
+
+		Mat4 Q = { 	gamma,			delta * axis[2],	-delta * axis[1],	-delta * axis[0]
+				,-delta * axis[2],	gamma,			delta * axis[0],	-delta * axis[1]
+				, delta * axis[1],	-delta * axis[0],	gamma,			-delta * axis[2]
+				, delta * axis[0],	delta * axis[1],	delta * axis[2],	gamma};
 		Mat4 temp = Q_bar * Q;
 
 		Vec4 gaze = normalize(Vec4(centerPosition[0]-eyePosition[0], centerPosition[1]-eyePosition[1], centerPosition[2]-eyePosition[2], 0));
 		gaze = temp * gaze;
 		centerPosition = (eyePosition + Vec3(gaze[0], gaze[1], gaze[2]));
 
-		Vec3 right = normalize(cross(Vec3(gaze[0], gaze[1], gaze[2]), upVector));
+		Vec3 right = (cross(Vec3(gaze[0], gaze[1], gaze[2]), upVector));
+		right[1]=0.0f;
 		
 		upVector = normalize(cross(right, Vec3(gaze[0], gaze[1], gaze[2])));
 	}
