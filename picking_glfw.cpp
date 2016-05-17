@@ -39,7 +39,7 @@ void msglVersion(void){
   fprintf(stderr, "\tRenderer: %s\n", glGetString(GL_RENDERER));
   fprintf(stderr, "\tOpenGL Version: %s\n", glGetString(GL_VERSION));
   fprintf(stderr, "\tGLSL Version: %s\n",
-          glGetString(GL_SHADING_LANGUAGE_VERSION));
+          glGetString(GL_SHADING_LANGUAGE_VERSION)); 
 }
 
 void drawSphere(float radius, int slices, int stacks){
