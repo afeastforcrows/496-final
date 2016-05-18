@@ -13,7 +13,6 @@ class SceneObj{
 	SceneObj *children[5];
 	int numChildren;
 	BBox BB;
-	bool draw;
 	FaceList *FL = readPlyModel("ply/trico.ply");
 
 	void init(std::string n, BBox bb, FaceList *fl);

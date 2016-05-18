@@ -7,7 +7,6 @@ void SceneObj::init(std::string n, BBox bb, FaceList *fl){
 	numChildren = 0;
 	BB = bb;
 	FL = fl;
-	draw = true;
 }
 
 void SceneObj::addParent(SceneObj *p){

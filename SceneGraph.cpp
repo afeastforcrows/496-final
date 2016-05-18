@@ -80,8 +80,7 @@ bool SceneGraph::cullIt(Vec3 centerPosition, Vec3 eyePosition, Vec3 upVector, Ve
 
 void SceneGraph::draw(Vec3 centerPosition, Vec3 eyePosition, Vec3 upVector, Mat4 modelViewMatrix){
 	for(int p = 1; p <numObj; p++){
-		//if(cullIt(normalize(centerPosition), eyePosition, upVector, Vec3(myObjs[p].FL->center[0], myObjs[p].FL->center[1], myObjs[p].FL->center[2]), modelViewMatrix))
-		if(true)
+		if(myObjs[p].draw)
 		{
 			myObjs[p].FL->draw();//call FaceList draw() function
 			//myObjs[p].BB.drawBB();
