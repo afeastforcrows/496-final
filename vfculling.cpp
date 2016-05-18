@@ -2,6 +2,7 @@
 //	Walter Wyatt Dorn					//
 //	CPSC 486						//
 //	Camera Control & View Frustum Culling – Assignment 3	//
+//	Dr. Shafae - CSU Fullerton				//	
 //	5/18/16							//
 //////////////////////////////////////////////////////////////////
 
@@ -36,22 +37,9 @@ void msglVersion(void){
           glGetString(GL_SHADING_LANGUAGE_VERSION)); 
 }
 
-void drawSphere(float radius, int slices, int stacks){
-	GLUquadricObj *quadObj;
-	quadObj = gluNewQuadric();
-	assert(quadObj);
-	/*
-	gluQuadricDrawStyle(quadObj, GLU_FILL);
-	gluQuadricNormals(quadObj, GLU_SMOOTH);
-	*/
-	gluQuadricDrawStyle(quadObj, GLU_LINE);
-	gluQuadricNormals(quadObj, GLU_SMOOTH);
-	gluSphere(quadObj, radius, slices, stacks);
-}
 
 class CameraControlApp : public GLFWApp{
 private:
-  FaceList* bunnyModel;
   float rotationDelta;
 
 	SceneGraph myGraph;
@@ -59,10 +47,6 @@ private:
   Vec3 centerPosition;
   Vec3 eyePosition;
   Vec3 upVector;
-
-	Vec3 startCenter;
-	Vec3 startUp;
-	Vec3 startEye;
 
 	Vec3 leftNorm;
 	Vec3 rightNorm;
@@ -119,9 +103,6 @@ public:
     initRotationDelta( );
 	myGraph.init();
 
-    // Load the bunny
-    bunnyModel = readPlyModel("trico.ply");
-
 	//initialize frustum plane normals
 	leftNorm = Vec3(-1,0,0.5);
 	rightNorm = Vec3(1,0,0.5);
@@ -175,43 +156,40 @@ public:
     
     return !msglError( );
 
+	//The following section of code is taken from the Trackball portion, and gives the scene values that are easier to work with
 	Vec2 mousePosition = mouseCurrentPosition( );
-		startPoint = normalize(endPoint);
-		endPoint = normalize(Vec3( -(mousePosition[0]-250)/(250), (mousePosition[1]-250)/(250), 0 ) + eyePosition);
+	startPoint = normalize(endPoint);
+	endPoint = normalize(Vec3( -(mousePosition[0]-250)/(250), (mousePosition[1]-250)/(250), 0 ) + eyePosition);
 
-		Vec3 startVec = normalize(centerPosition-startPoint);
-		Vec3 endVec = normalize(centerPosition-endPoint);
+	Vec3 startVec = normalize(centerPosition-startPoint);
+	Vec3 endVec = normalize(centerPosition-endPoint);
 
-		float angle = dot(endVec, startVec);
-		Vec3 axis = cross(startVec, endVec);
+	float angle = dot(endVec, startVec);
+	Vec3 axis = cross(startVec, endVec);
 
-		angle*=2.0f;
+	angle*=2.0f;
 
-		float delta = sin(angle / 2);
-		float gamma = cos(angle / 2);
-		Mat4 Q_bar = { 	gamma,			delta * axis[2],	-delta * axis[1],	delta * axis[0]
-				,-delta * axis[2],	gamma,			delta * axis[0],	delta * axis[1]
-				, delta * axis[1],	-delta * axis[0],	gamma,			delta * axis[2]
-				,-delta * axis[0],	-delta * axis[1],	-delta * axis[2],	gamma};
+	float delta = sin(angle / 2);
+	float gamma = cos(angle / 2);
+	Mat4 Q_bar = { 	gamma,			delta * axis[2],	-delta * axis[1],	delta * axis[0]
+			,-delta * axis[2],	gamma,			delta * axis[0],	delta * axis[1]
+			, delta * axis[1],	-delta * axis[0],	gamma,			delta * axis[2]
+			,-delta * axis[0],	-delta * axis[1],	-delta * axis[2],	gamma};
 
-		Mat4 Q = { 	gamma,			delta * axis[2],	-delta * axis[1],	-delta * axis[0]
-				,-delta * axis[2],	gamma,			delta * axis[0],	-delta * axis[1]
-				, delta * axis[1],	-delta * axis[0],	gamma,			-delta * axis[2]
-				, delta * axis[0],	delta * axis[1],	delta * axis[2],	gamma};
-		Mat4 temp = Q_bar * Q;
+	Mat4 Q = { 	gamma,			delta * axis[2],	-delta * axis[1],	-delta * axis[0]
+			,-delta * axis[2],	gamma,			delta * axis[0],	-delta * axis[1]
+			, delta * axis[1],	-delta * axis[0],	gamma,			-delta * axis[2]
+			, delta * axis[0],	delta * axis[1],	delta * axis[2],	gamma};
+	Mat4 temp = Q_bar * Q;
 
-		Vec4 gaze = normalize(Vec4(centerPosition[0]-eyePosition[0], centerPosition[1]-eyePosition[1], centerPosition[2]-eyePosition[2], 0));
-		gaze = temp * gaze;
-		centerPosition = (eyePosition + Vec3(gaze[0], gaze[1], gaze[2]));
-		fprintf(stderr, "Center is: %f, %f, %f \n", centerPosition[0], centerPosition[1], centerPosition[2]);
-		Vec3 right = (cross(Vec3(gaze[0], gaze[1], gaze[2]), upVector));
-		right[1]=0.0f;
-		
-		upVector = normalize(cross(right, Vec3(gaze[0], gaze[1], gaze[2])));
-
-		startCenter = centerPosition;
-		startUp = upVector;
-		startEye = eyePosition;
+	Vec4 gaze = normalize(Vec4(centerPosition[0]-eyePosition[0], centerPosition[1]-eyePosition[1], centerPosition[2]-eyePosition[2], 0));
+	gaze = temp * gaze;
+	centerPosition = (eyePosition + Vec3(gaze[0], gaze[1], gaze[2]));
+	fprintf(stderr, "Center is: %f, %f, %f \n", centerPosition[0], centerPosition[1], centerPosition[2]);
+	Vec3 right = (cross(Vec3(gaze[0], gaze[1], gaze[2]), upVector));
+	right[1]=0.0f;
+	
+	upVector = normalize(cross(right, Vec3(gaze[0], gaze[1], gaze[2])));
   }
   
   bool end( ){
@@ -358,51 +336,60 @@ public:
     glUniform1fv(uShininess, 1, high); 
 
 	glBegin(GL_QUADS);
-    /* Front sky */
+    //front
     glNormal3f( -1.0f,  0.0f,   1.0f);
-    glVertex3f( 12.0f,  0.0f, -12.0f);
+    glVertex3f( 11.0f,  -1.0f, -11.0f);
     glNormal3f( -1.0f, -1.0f,   1.0f);
-    glVertex3f( 12.0f, 12.0f, -12.0f);
+    glVertex3f( 11.0f, 11.0f, -11.0f);
     glNormal3f(  1.0f, -1.0f,   1.0f);
-    glVertex3f(-12.0f, 12.0f, -12.0f);
+    glVertex3f(-11.0f, 11.0f, -11.0f);
     glNormal3f(  1.0f,  0.0f,   1.0f);
-    glVertex3f(-12.0f,  0.0f, -12.0f);
-    /* Rear sky */
+    glVertex3f(-11.0f,  -1.0f, -11.0f);
+    //back
     glNormal3f(  1.0f,  0.0f,  -1.0f);
-    glVertex3f(-12.0f,  0.0f,  12.0f);
+    glVertex3f(-11.0f,  -1.0f,  11.0f);
     glNormal3f(  1.0f, -1.0f,  -1.0f);
-    glVertex3f(-12.0f, 12.0f,  12.0f);
+    glVertex3f(-11.0f, 11.0f,  11.0f);
     glNormal3f( -1.0f, -1.0f,  -1.0f);
-    glVertex3f( 12.0f, 12.0f,  12.0f);
+    glVertex3f( 11.0f, 11.0f,  11.0f);
     glNormal3f( -1.0f,  0.0f,  -1.0f);
-    glVertex3f( 12.0f,  0.0f,  12.0f);
-    /* Left sky */
+    glVertex3f( 11.0f,  -1.0f,  11.0f);
+    //left
     glNormal3f(  1.0f,  0.0f,   1.0f);
-    glVertex3f(-12.0f,  0.0f, -12.0f);
+    glVertex3f(-11.0f,  -1.0f, -11.0f);
     glNormal3f(  1.0f, -1.0f,   1.0f);
-    glVertex3f(-12.0f, 12.0f, -12.0f);
+    glVertex3f(-11.0f, 11.0f, -11.0f);
     glNormal3f(  1.0f, -1.0f,  -1.0f);
-    glVertex3f(-12.0f, 12.0f,  12.0f);
+    glVertex3f(-11.0f, 11.0f,  11.0f);
     glNormal3f(  1.0f,  0.0f,  -1.0f);
-    glVertex3f(-12.0f,  0.0f,  12.0f);
-    /* Right sky */
+    glVertex3f(-11.0f,  -1.0f,  11.0f);
+    //right
     glNormal3f( -1.0f,  0.0f,  -1.0f);
-    glVertex3f( 12.0f,  0.0f,  12.0f);
+    glVertex3f( 11.0f,  -1.0f,  11.0f);
     glNormal3f( -1.0f, -1.0f,  -1.0f);
-    glVertex3f( 12.0f, 12.0f,  12.0f);
+    glVertex3f( 11.0f, 11.0f,  11.0f);
     glNormal3f( -1.0f, -1.0f,   1.0f);
-    glVertex3f( 12.0f, 12.0f, -12.0f);
+    glVertex3f( 11.0f, 11.0f, -11.0f);
     glNormal3f( -1.0f,  0.0f,   1.0f);
-    glVertex3f( 12.0f,  0.0f, -12.0f);
-    /* Top sky */
+    glVertex3f( 11.0f,  -1.0f, -11.0f);
+    //top
     glNormal3f( -1.0f, -1.0f,   1.0f);
-    glVertex3f( 12.0f, 12.0f, -12.0f);
+    glVertex3f( 11.0f, 11.0f, -11.0f);
     glNormal3f( -1.0f, -1.0f,  -1.0f);
-    glVertex3f( 12.0f, 12.0f,  12.0f);
+    glVertex3f( 11.0f, 11.0f,  11.0f);
     glNormal3f(  1.0f, -1.0f,  -1.0f);
-    glVertex3f(-12.0f, 12.0f,  12.0f);
+    glVertex3f(-11.0f, 11.0f,  11.0f);
     glNormal3f(  1.0f, -1.0f,   1.0f);
-    glVertex3f(-12.0f, 12.0f, -12.0f);
+    glVertex3f(-11.0f, 11.0f, -11.0f);
+    //ground
+    glNormal3f( 0.0f, 1.0f,   0.0f);
+    glVertex3f( 11.0f, -1.0f, 11.0f);
+    glNormal3f( 0.0f, 1.0f,   0.0f);
+    glVertex3f( 11.0f, -1.0f,  -11.0f);
+    glNormal3f( 0.0f, 1.0f,   0.0f);
+    glVertex3f(-11.0f, -1.0f,  -11.0f);
+    glNormal3f( 0.0f, 1.0f,   0.0f);
+    glVertex3f(-11.0f, -1.0f, 11.0f);
     glEnd();
 	
 	glLineWidth(1.0f);
@@ -521,25 +508,9 @@ public:
 	centerPosition+=c/5.0f;
 	eyePosition+=c/5.0f;
     }
-	if(mouseButtonFlags( ) == GLFWApp::MOUSE_BUTTON_LEFT){
-		Vec2 mousePosition = mouseCurrentPosition( );
-		for(int x=1; x<numObj; x++){
-			if(pick(mousePosition[0], mousePosition[1], myGraph.myObjs[x].FL)){
-				printf("Intersect with %s!\n", myGraph.myObjs[x].name.c_str());
-				myGraph.showBB = x;
-				myGraph.selectedObj = x;
-				break;
-			}
-			else{
-				myGraph.showBB = -1;
-				myGraph.selectedObj = -1;
-			}
-		}
-	}
-	if (isKeyPressed(GLFW_KEY_LEFT_CONTROL) && mouseButtonFlags( ) == GLFWApp::MOUSE_BUTTON_LEFT){
-		
-	}
+	
 	if (isKeyPressed(GLFW_KEY_LEFT_SHIFT) && mouseButtonFlags( ) == GLFWApp::MOUSE_BUTTON_LEFT){
+		//Trackball functionality is engaged when the shift key is helt, and the left mouse button is pressed
 		Vec2 mousePosition = mouseCurrentPosition( );
 		startPoint = normalize(endPoint);
 		endPoint = normalize(Vec3( -(mousePosition[0]-250)/(250), (mousePosition[1]-250)/(250), 0 ) + eyePosition);
@@ -582,12 +553,26 @@ public:
 		Vec4 gaze = normalize(Vec4(centerPosition[0]-eyePosition[0], centerPosition[1]-eyePosition[1], centerPosition[2]-eyePosition[2], 0));
 		gaze = temp * gaze;
 		centerPosition = (eyePosition + Vec3(gaze[0], gaze[1], gaze[2]));
-		fprintf(stderr, "Center is: %f, %f, %f \n", centerPosition[0], centerPosition[1], centerPosition[2]);
 		Vec3 right = (cross(Vec3(gaze[0], gaze[1], gaze[2]), upVector));
 		right[1]=0.0f;
 		
 		upVector = normalize(cross(right, Vec3(gaze[0], gaze[1], gaze[2])));
+	}else if(mouseButtonFlags( ) == GLFWApp::MOUSE_BUTTON_LEFT){
+		//When the left mouse button in clicked, pick() is called, determining which object is selected
+		Vec2 mousePosition = mouseCurrentPosition( );
+		for(int x=1; x<numObj; x++){
+			if(pick(mousePosition[0], mousePosition[1], myGraph.myObjs[x].FL)){
+				myGraph.showBB = x;
+				myGraph.selectedObj = x;
+				break;
+			}
+			else{
+				myGraph.showBB = -1;
+				myGraph.selectedObj = -1;
+			}
+		}
 	}
+	
 	Vec2 mousePosition = mouseCurrentPosition();
 	endPoint = Vec3( -(mousePosition[0]-250)/(250) , (mousePosition[1]-250)/(250), 0 ) + eyePosition;
 	myGraph.update(centerPosition, eyePosition, upVector, modelViewMatrix);

@@ -1,15 +1,10 @@
-// 
-// Michael Shafae
-// mshafae at fullerton.edu
-// 
-// The Utah teapot floating in space. Camera can be rotated up/down and 
-// left right. The camera's transformations are defined/implemented in
-// transformations.h/cpp. 
-//
-// This demonstration program requires that you provide your own GFXMath.h.
-//
-// $Id: camera_control_glfw.cpp 5625 2015-03-26 06:18:52Z mshafae $
-//
+//////////////////////////////////////////////////////////////////
+//	Walter Wyatt Dorn					//
+//	CPSC 486						//
+//	Camera Control & View Frustum Culling – Assignment 3	//
+//	Dr. Shafae - CSU Fullerton				//	
+//	5/18/16							//
+//////////////////////////////////////////////////////////////////
 
 #include <cstdlib>
 #include <cstdio>
@@ -31,7 +26,7 @@ Vec3 endPoint = Vec3(0.0f,0.0f,0.0f);
 Vec3 startPoint = endPoint;
 float distToCenter = 5;
 float pi = 3.14159f;
-
+int tempSelectedObj = -1;
 
 void msglVersion(void){
   fprintf(stderr, "OpenGL Version Information:\n");
@@ -42,22 +37,9 @@ void msglVersion(void){
           glGetString(GL_SHADING_LANGUAGE_VERSION)); 
 }
 
-void drawSphere(float radius, int slices, int stacks){
-	GLUquadricObj *quadObj;
-	quadObj = gluNewQuadric();
-	assert(quadObj);
-	/*
-	gluQuadricDrawStyle(quadObj, GLU_FILL);
-	gluQuadricNormals(quadObj, GLU_SMOOTH);
-	*/
-	gluQuadricDrawStyle(quadObj, GLU_LINE);
-	gluQuadricNormals(quadObj, GLU_SMOOTH);
-	gluSphere(quadObj, radius, slices, stacks);
-}
 
 class CameraControlApp : public GLFWApp{
 private:
-  FaceList* bunnyModel;
   float rotationDelta;
 
 	SceneGraph myGraph;
@@ -121,9 +103,6 @@ public:
     initRotationDelta( );
 	myGraph.init();
 
-    // Load the bunny
-    bunnyModel = readPlyModel("trico.ply");
-
 	//initialize frustum plane normals
 	leftNorm = Vec3(-1,0,0.5);
 	rightNorm = Vec3(1,0,0.5);
@@ -176,6 +155,41 @@ public:
     msglVersion( );
     
     return !msglError( );
+
+	//The following section of code is taken from the Trackball portion, and gives the scene values that are easier to work with
+	Vec2 mousePosition = mouseCurrentPosition( );
+	startPoint = normalize(endPoint);
+	endPoint = normalize(Vec3( -(mousePosition[0]-250)/(250), (mousePosition[1]-250)/(250), 0 ) + eyePosition);
+
+	Vec3 startVec = normalize(centerPosition-startPoint);
+	Vec3 endVec = normalize(centerPosition-endPoint);
+
+	float angle = dot(endVec, startVec);
+	Vec3 axis = cross(startVec, endVec);
+
+	angle*=2.0f;
+
+	float delta = sin(angle / 2);
+	float gamma = cos(angle / 2);
+	Mat4 Q_bar = { 	gamma,			delta * axis[2],	-delta * axis[1],	delta * axis[0]
+			,-delta * axis[2],	gamma,			delta * axis[0],	delta * axis[1]
+			, delta * axis[1],	-delta * axis[0],	gamma,			delta * axis[2]
+			,-delta * axis[0],	-delta * axis[1],	-delta * axis[2],	gamma};
+
+	Mat4 Q = { 	gamma,			delta * axis[2],	-delta * axis[1],	-delta * axis[0]
+			,-delta * axis[2],	gamma,			delta * axis[0],	-delta * axis[1]
+			, delta * axis[1],	-delta * axis[0],	gamma,			-delta * axis[2]
+			, delta * axis[0],	delta * axis[1],	delta * axis[2],	gamma};
+	Mat4 temp = Q_bar * Q;
+
+	Vec4 gaze = normalize(Vec4(centerPosition[0]-eyePosition[0], centerPosition[1]-eyePosition[1], centerPosition[2]-eyePosition[2], 0));
+	gaze = temp * gaze;
+	centerPosition = (eyePosition + Vec3(gaze[0], gaze[1], gaze[2]));
+	fprintf(stderr, "Center is: %f, %f, %f \n", centerPosition[0], centerPosition[1], centerPosition[2]);
+	Vec3 right = (cross(Vec3(gaze[0], gaze[1], gaze[2]), upVector));
+	right[1]=0.0f;
+	
+	upVector = normalize(cross(right, Vec3(gaze[0], gaze[1], gaze[2])));
   }
   
   bool end( ){
@@ -197,29 +211,7 @@ public:
 				myGraph.myObjs[x].draw = true;
 			}
 		}
-		//fprintf(stderr, "left/right/top/bottom: %f, %f, %f, %f.\n", distLeft, distRight, distTop, distBot );
-		//if(distLeft && distRight && distTop && distBot){
-		//return true;
 	}
-
-	/*
-	float dist_Point_to_Plane( Vec3 P, Vec3 B){
-		//plane = vec4
-		Vec3 planeNormals[4];
-		planeNormals[0] = Vec3(0,1,1); //bottom
-		planeNormals[1] = Vec3(-1,0,1);
-		planeNormals[2] = Vec3(0,1,-1);
-		planeNormals[3] = Vec3(1,0,1);
-		float    sb, sn, sd;
-
-		sn = -dot( planeNormals[0], (P - eyePosition));
-		sd = dot(planeNormals[0], planeNormals[0]);
-		sb = sn / sd;
-
-		*B = P + sb * planeNormals[0];
-		return 1;//normalize(P - B);
-	}
-		*/
   
   bool pick(int x, int y, FaceList *fl){
 		bool result = false;
@@ -239,17 +231,6 @@ public:
 		Vec3 nearWinCoord(x, flipped_y, 0);
 		Vec3 farWinCoord(x, flipped_y, 1);
 		Vec3 nearObjCoord, farObjCoord;
-		/*int viewport[4];
-		glGetIntegerv( GL_VIEWPORT, viewport ); 
-		double mv[16], proj[16];
-		for(int i = 0; i < 4; i++){
-		      for(int j = 0; j < 4; j++){
-			mv[(i*4)+j] = modelViewMatrix(i, j);
-			proj[(i*4)+j] = projectionMatrix(i, j);
-		      }
-		    }
-		    double a, b, c, d, e, f;*/
-		    //_msUnProject(x, y, 0.0, mv, proj, viewport, &a, &b, &c);
 		if(!unproject(nearWinCoord, projectionMatrix, modelViewMatrix, vp, nearObjCoord)){
 			std::cerr << "Something is wrong, the omega of the unprojected winCoord is zero." << std::endl;
 			assert(false);
@@ -355,51 +336,60 @@ public:
     glUniform1fv(uShininess, 1, high); 
 
 	glBegin(GL_QUADS);
-    /* Front sky */
+    //front
     glNormal3f( -1.0f,  0.0f,   1.0f);
-    glVertex3f( 12.0f,  0.0f, -12.0f);
+    glVertex3f( 11.0f,  -1.0f, -11.0f);
     glNormal3f( -1.0f, -1.0f,   1.0f);
-    glVertex3f( 12.0f, 12.0f, -12.0f);
+    glVertex3f( 11.0f, 11.0f, -11.0f);
     glNormal3f(  1.0f, -1.0f,   1.0f);
-    glVertex3f(-12.0f, 12.0f, -12.0f);
+    glVertex3f(-11.0f, 11.0f, -11.0f);
     glNormal3f(  1.0f,  0.0f,   1.0f);
-    glVertex3f(-12.0f,  0.0f, -12.0f);
-    /* Rear sky */
+    glVertex3f(-11.0f,  -1.0f, -11.0f);
+    //back
     glNormal3f(  1.0f,  0.0f,  -1.0f);
-    glVertex3f(-12.0f,  0.0f,  12.0f);
+    glVertex3f(-11.0f,  -1.0f,  11.0f);
     glNormal3f(  1.0f, -1.0f,  -1.0f);
-    glVertex3f(-12.0f, 12.0f,  12.0f);
+    glVertex3f(-11.0f, 11.0f,  11.0f);
     glNormal3f( -1.0f, -1.0f,  -1.0f);
-    glVertex3f( 12.0f, 12.0f,  12.0f);
+    glVertex3f( 11.0f, 11.0f,  11.0f);
     glNormal3f( -1.0f,  0.0f,  -1.0f);
-    glVertex3f( 12.0f,  0.0f,  12.0f);
-    /* Left sky */
+    glVertex3f( 11.0f,  -1.0f,  11.0f);
+    //left
     glNormal3f(  1.0f,  0.0f,   1.0f);
-    glVertex3f(-12.0f,  0.0f, -12.0f);
+    glVertex3f(-11.0f,  -1.0f, -11.0f);
     glNormal3f(  1.0f, -1.0f,   1.0f);
-    glVertex3f(-12.0f, 12.0f, -12.0f);
+    glVertex3f(-11.0f, 11.0f, -11.0f);
     glNormal3f(  1.0f, -1.0f,  -1.0f);
-    glVertex3f(-12.0f, 12.0f,  12.0f);
+    glVertex3f(-11.0f, 11.0f,  11.0f);
     glNormal3f(  1.0f,  0.0f,  -1.0f);
-    glVertex3f(-12.0f,  0.0f,  12.0f);
-    /* Right sky */
+    glVertex3f(-11.0f,  -1.0f,  11.0f);
+    //right
     glNormal3f( -1.0f,  0.0f,  -1.0f);
-    glVertex3f( 12.0f,  0.0f,  12.0f);
+    glVertex3f( 11.0f,  -1.0f,  11.0f);
     glNormal3f( -1.0f, -1.0f,  -1.0f);
-    glVertex3f( 12.0f, 12.0f,  12.0f);
+    glVertex3f( 11.0f, 11.0f,  11.0f);
     glNormal3f( -1.0f, -1.0f,   1.0f);
-    glVertex3f( 12.0f, 12.0f, -12.0f);
+    glVertex3f( 11.0f, 11.0f, -11.0f);
     glNormal3f( -1.0f,  0.0f,   1.0f);
-    glVertex3f( 12.0f,  0.0f, -12.0f);
-    /* Top sky */
+    glVertex3f( 11.0f,  -1.0f, -11.0f);
+    //top
     glNormal3f( -1.0f, -1.0f,   1.0f);
-    glVertex3f( 12.0f, 12.0f, -12.0f);
+    glVertex3f( 11.0f, 11.0f, -11.0f);
     glNormal3f( -1.0f, -1.0f,  -1.0f);
-    glVertex3f( 12.0f, 12.0f,  12.0f);
+    glVertex3f( 11.0f, 11.0f,  11.0f);
     glNormal3f(  1.0f, -1.0f,  -1.0f);
-    glVertex3f(-12.0f, 12.0f,  12.0f);
+    glVertex3f(-11.0f, 11.0f,  11.0f);
     glNormal3f(  1.0f, -1.0f,   1.0f);
-    glVertex3f(-12.0f, 12.0f, -12.0f);
+    glVertex3f(-11.0f, 11.0f, -11.0f);
+    //ground
+    glNormal3f( 0.0f, 1.0f,   0.0f);
+    glVertex3f( 11.0f, -1.0f, 11.0f);
+    glNormal3f( 0.0f, 1.0f,   0.0f);
+    glVertex3f( 11.0f, -1.0f,  -11.0f);
+    glNormal3f( 0.0f, 1.0f,   0.0f);
+    glVertex3f(-11.0f, -1.0f,  -11.0f);
+    glNormal3f( 0.0f, 1.0f,   0.0f);
+    glVertex3f(-11.0f, -1.0f, 11.0f);
     glEnd();
 	
 	glLineWidth(1.0f);
@@ -414,30 +404,88 @@ public:
 						myGraph.myObjs[myGraph.showBB].FL->radius);
 	}
 
-	if(isKeyPressed('1')){
-		isInFrustum();
-	}
-	if(isKeyPressed('A')){
-		myGraph.myObjs[1].FL->translate(0,0.1,0);
-	}
-	if(isKeyPressed('S')){
-		myGraph.myObjs[1].FL->translate(0,-0.1,0);
+	if(myGraph.selectedObj > 0){
+
+		//Translate selected Object
+		if(isKeyPressed('H')){
+			myGraph.translate(&myGraph.myObjs[myGraph.selectedObj],0.1,0);
+		}
+		else if(isKeyPressed('F')){
+			myGraph.translate(&myGraph.myObjs[myGraph.selectedObj],-0.1,0);
+		}
+		else if(isKeyPressed('T')){
+			myGraph.translate(&myGraph.myObjs[myGraph.selectedObj],0,0.1);
+		}
+		else if(isKeyPressed('G')){
+			myGraph.translate(&myGraph.myObjs[myGraph.selectedObj],0,-0.1);
+		}
+		else if(isKeyPressed('D')){
+			Vec3 axis = Vec3(	myGraph.myObjs[myGraph.selectedObj].FL->center[0],
+						myGraph.myObjs[myGraph.selectedObj].FL->center[1]+1,
+						myGraph.myObjs[myGraph.selectedObj].FL->center[2]);
+			axis = axis - Vec3(	myGraph.myObjs[myGraph.selectedObj].FL->center[0],
+						myGraph.myObjs[myGraph.selectedObj].FL->center[1],
+						myGraph.myObjs[myGraph.selectedObj].FL->center[2]);
+			//axis -= centerPosition;
+			myGraph.myObjs[myGraph.selectedObj].FL->rotate(axis,0.1);
+		}
+		else if(isKeyPressed('W')){
+			Vec3 axis = Vec3(	myGraph.myObjs[myGraph.selectedObj].FL->center[0]+0.5,
+						myGraph.myObjs[myGraph.selectedObj].FL->center[1],
+						myGraph.myObjs[myGraph.selectedObj].FL->center[2]);
+			axis = axis - Vec3(	myGraph.myObjs[myGraph.selectedObj].FL->center[0],
+						myGraph.myObjs[myGraph.selectedObj].FL->center[1],
+						myGraph.myObjs[myGraph.selectedObj].FL->center[2]);
+			//axis -= centerPosition;
+			myGraph.myObjs[myGraph.selectedObj].FL->rotate(axis,0.1);
+		}
+		else if(isKeyPressed('A')){
+			Vec3 axis = Vec3(	myGraph.myObjs[myGraph.selectedObj].FL->center[0],
+						myGraph.myObjs[myGraph.selectedObj].FL->center[1]+1,
+						myGraph.myObjs[myGraph.selectedObj].FL->center[2]);
+			axis = axis - Vec3(	myGraph.myObjs[myGraph.selectedObj].FL->center[0],
+						myGraph.myObjs[myGraph.selectedObj].FL->center[1],
+						myGraph.myObjs[myGraph.selectedObj].FL->center[2]);
+			//axis -= centerPosition;
+			myGraph.myObjs[myGraph.selectedObj].FL->rotate(axis,-0.1);
+		}
+		else if(isKeyPressed('S')){
+			Vec3 axis = Vec3(	myGraph.myObjs[myGraph.selectedObj].FL->center[0]+0.5,
+						myGraph.myObjs[myGraph.selectedObj].FL->center[1],
+						myGraph.myObjs[myGraph.selectedObj].FL->center[2]);
+			axis = axis - Vec3(	myGraph.myObjs[myGraph.selectedObj].FL->center[0],
+						myGraph.myObjs[myGraph.selectedObj].FL->center[1],
+						myGraph.myObjs[myGraph.selectedObj].FL->center[2]);
+			//axis -= centerPosition;
+			myGraph.myObjs[myGraph.selectedObj].FL->rotate(axis,-0.1);
+		}
+		
 	}
 
 	if(isKeyPressed('B')){
-		fprintf(stderr, "Center %f, %f, %f \n", centerPosition[0], centerPosition[1], centerPosition[2]);
-		fprintf(stderr, "eye %f, %f, %f \n", eyePosition[0], eyePosition[1], eyePosition[2]);
-		//fprintf(stderr, "Right %f, %f, %f \n", eyePosition[0], eyePosition[1], eyePosition[2]);
+		if(tempSelectedObj == -1){
+			tempSelectedObj = myGraph.selectedObj;
+			myGraph.showBB = -1;
+		}else{
+			myGraph.showBB = tempSelectedObj;
+			tempSelectedObj = -1;
+		}
+	}
+
+	if(isKeyPressed('I')){
+		printf( "Controls are as follows: ");
+		printf( "shift+mouse: trackball movement");
+		printf( "b: toggle rendering the bounding volumes");
+		printf( "i: print a help message");
+		printf( "q/esc: quit");
+		printf( "r: reset camera orientation to default state (bugged)");
+		printf( "w, a, s, d: rotate the selected model (bugged)");
+		printf( "arrow keys: moves the camera forward, backward, to the left and to the right");
+		printf( "t, f, g, h: translate the selected model");
 	}
 
     if(isKeyPressed('Q')){
       end( );      
-    }else if(isKeyPressed(GLFW_KEY_EQUAL)){
-      rotationDelta += 1.0;
-      printf( "Rotation delta set to %g\n", rotationDelta );
-    }else if(isKeyPressed(GLFW_KEY_MINUS)){
-      rotationDelta -= 1.0;
-      printf( "Rotation delta set to %g\n", rotationDelta );
     }else if(isKeyPressed('R')){
       initEyePosition( );
       initUpVector( );
@@ -452,33 +500,32 @@ public:
 	eyePosition+=right/5.0f;
 	centerPosition+=(right/5.0f);
     }else if(isKeyPressed(GLFW_KEY_UP)){
-	eyePosition+=upVector/5.0f;
-	centerPosition+=(upVector/5.0f);
+	Vec3 c = normalize(centerPosition);
+	centerPosition-=c/5.0f;
+	eyePosition-=c/5.0f;
     }else if(isKeyPressed(GLFW_KEY_DOWN)){
-	eyePosition-=upVector/5.0f;
-	centerPosition-=(upVector/5.0f);
+	Vec3 c = normalize(centerPosition);
+	centerPosition+=c/5.0f;
+	eyePosition+=c/5.0f;
     }
 	if(mouseButtonFlags( ) == GLFWApp::MOUSE_BUTTON_LEFT){
-		//printf("mouse left button\n");
+		//When the left mouse button in clicked, pick() is called, determining which object is selected
 		Vec2 mousePosition = mouseCurrentPosition( );
-		//std::cout << "Mouse position: " << mousePosition << std::endl;
 		for(int x=1; x<numObj; x++){
 			if(pick(mousePosition[0], mousePosition[1], myGraph.myObjs[x].FL)){
-				printf("Intersect with %s!\n", myGraph.myObjs[x].name.c_str());
 				myGraph.showBB = x;
+				myGraph.selectedObj = x;
 				break;
 			}
 			else{
 				myGraph.showBB = -1;
+				myGraph.selectedObj = -1;
 			}
 		}
 	}
 	if (isKeyPressed(GLFW_KEY_LEFT_SHIFT) && mouseButtonFlags( ) == GLFWApp::MOUSE_BUTTON_LEFT){
-		
-	}
-	if (isKeyPressed(GLFW_KEY_LEFT_CONTROL) && mouseButtonFlags( ) == GLFWApp::MOUSE_BUTTON_LEFT){
+		//Trackball functionality is engaged when the shift key is helt, and the left mouse button is pressed
 		Vec2 mousePosition = mouseCurrentPosition( );
-		//fprintf(stderr, "Trackball engaged!\n");
 		startPoint = normalize(endPoint);
 		endPoint = normalize(Vec3( -(mousePosition[0]-250)/(250), (mousePosition[1]-250)/(250), 0 ) + eyePosition);
 
@@ -487,7 +534,6 @@ public:
 
 		float angle = dot(endVec, startVec);
 		Vec3 axis = cross(startVec, endVec);
-		//axis[2] = 0;
 
 		angle*=2.0f;
 
@@ -521,7 +567,6 @@ public:
 		Vec4 gaze = normalize(Vec4(centerPosition[0]-eyePosition[0], centerPosition[1]-eyePosition[1], centerPosition[2]-eyePosition[2], 0));
 		gaze = temp * gaze;
 		centerPosition = (eyePosition + Vec3(gaze[0], gaze[1], gaze[2]));
-		fprintf(stderr, "Center is: %f, %f, %f \n", centerPosition[0], centerPosition[1], centerPosition[2]);
 		Vec3 right = (cross(Vec3(gaze[0], gaze[1], gaze[2]), upVector));
 		right[1]=0.0f;
 		

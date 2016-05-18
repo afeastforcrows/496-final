@@ -23,9 +23,9 @@ $(error "Platform '$(SYSTEM)' not supported")
 endif
 
 
-TARGET = vfculling
+TARGET = picking
 # C++ Files
-CXXFILES =   vfculling.cpp PlyModel.cpp transformations.cpp BBox.cpp SceneObj.cpp SceneGraph.cpp
+CXXFILES =   picking_glfw.cpp PlyModel.cpp transformations.cpp BBox.cpp SceneObj.cpp SceneGraph.cpp
 CFILES =  
 # Headers
 HEADERS =  BBox.h SceneObj.h SceneGraph.h

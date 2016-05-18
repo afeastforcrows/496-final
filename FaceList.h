@@ -120,6 +120,30 @@ public:
     msFree2D( faces, fc, 3 );
   };
 
+	void rotate(Vec3 axis, float angle){
+		//
+		float delta = sin(angle / 2);
+		float gamma = cos(angle / 2);
+		Mat4 Q_bar = { 	gamma,			delta * axis[2],	-delta * axis[1],	delta * axis[0]
+				,-delta * axis[2],	gamma,			delta * axis[0],	delta * axis[1]
+				, delta * axis[1],	-delta * axis[0],	gamma,			delta * axis[2]
+				,-delta * axis[0],	-delta * axis[1],	-delta * axis[2],	gamma};
+
+		Mat4 Q = { 	gamma,			delta * axis[2],	-delta * axis[1],	-delta * axis[0]
+				,-delta * axis[2],	gamma,			delta * axis[0],	-delta * axis[1]
+				, delta * axis[1],	-delta * axis[0],	gamma,			-delta * axis[2]
+				, delta * axis[0],	delta * axis[1],	delta * axis[2],	gamma};
+		Mat4 temp = Q_bar * Q;
+		Vec4 tempVec;
+		for(int i = 0; i < vc; i++ ){
+			tempVec = Vec4(vertices[i][0], vertices[i][1], vertices[i][2], 0);
+			tempVec = temp * tempVec;
+			vertices[i][0]=tempVec[0];
+			vertices[i][1]=tempVec[1];
+			vertices[i][2]=tempVec[2];
+		}
+	}
+
 	void translate(float x, float y, float z){
 		for(int i = 0; i < vc; i++ ){
 			vertices[i][0]+=x;

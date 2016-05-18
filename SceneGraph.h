@@ -1,10 +1,18 @@
+//////////////////////////////////////////////////////////////////
+//	Walter Wyatt Dorn					//
+//	CPSC 486						//
+//	Camera Control & View Frustum Culling – Assignment 3	//
+//	Dr. Shafae - CSU Fullerton				//	
+//	5/18/16							//
+//////////////////////////////////////////////////////////////////
+
 #include "GFXMath.h"
 #include "PlyModel.h"
 #include "SceneObj.h"
 #include "BBox.h"
 #include <cmath>
 
-const int numObj = 4;
+const int numObj = 5;
 
 #ifndef Included_SceneGraph_H
 #define Included_SceneGraph_H
@@ -17,6 +25,7 @@ class SceneGraph{
 	BBox worldBB;
 
 	int showBB; //keep track of which bounding volume to show
+	int selectedObj;
 	bool boolBB; //A switch used when toggling bounding volumes on/off
 	bool hitFlag; //keep track of weather the pick() hit a model
 
@@ -36,7 +45,7 @@ class SceneGraph{
 
 	void testPar();
 
-	void translate(SceneObj *s, float n);
+	void translate(SceneObj *s, float x, float y);
 
 	void drawSphere(float radius, int slices, int stacks, double x, double y, double z);
 };

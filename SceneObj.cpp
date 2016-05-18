@@ -1,3 +1,11 @@
+//////////////////////////////////////////////////////////////////
+//	Walter Wyatt Dorn					//
+//	CPSC 486						//
+//	Camera Control & View Frustum Culling – Assignment 3	//
+//	Dr. Shafae - CSU Fullerton				//	
+//	5/18/16							//
+//////////////////////////////////////////////////////////////////
+
 #include "SceneObj.h"
 
 //basic data structure to act as objects in scene graph
@@ -12,6 +20,7 @@ void SceneObj::init(std::string n, BBox bb, FaceList *fl){
 
 void SceneObj::addParent(SceneObj *p){
 	parent = p;
+	p->addChild(this);
 }
 
 void SceneObj::addChild(SceneObj *c){

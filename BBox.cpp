@@ -1,3 +1,11 @@
+//////////////////////////////////////////////////////////////////
+//	Walter Wyatt Dorn					//
+//	CPSC 486						//
+//	Camera Control & View Frustum Culling – Assignment 3	//
+//	Dr. Shafae - CSU Fullerton				//	
+//	5/18/16							//
+//////////////////////////////////////////////////////////////////
+
 #include "BBox.h"
 #include "GFXMath.h"
 #include "GFXExtra.h"

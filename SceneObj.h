@@ -1,3 +1,11 @@
+//////////////////////////////////////////////////////////////////
+//	Walter Wyatt Dorn					//
+//	CPSC 486						//
+//	Camera Control & View Frustum Culling – Assignment 3	//
+//	Dr. Shafae - CSU Fullerton				//	
+//	5/18/16							//
+//////////////////////////////////////////////////////////////////
+
 #include "GFXMath.h"
 #include "BBox.h"
 #include <cmath>
@@ -14,7 +22,7 @@ class SceneObj{
 	int numChildren;
 	BBox BB;
 	bool draw;
-	FaceList *FL = readPlyModel("ply/trico.ply");
+	FaceList *FL = readPlyModel("data/trico.ply");
 
 	void init(std::string n, BBox bb, FaceList *fl);
 
